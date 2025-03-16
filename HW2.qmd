@@ -1,0 +1,202 @@
+---
+title: "HW2"
+subtitle: "R code"
+date: 2025/03/15
+author: 數據一 謝宗佑
+format:
+ # pdf:
+ #    include-in-header:
+ #      - text: |
+ #         \usepackage{setspace,relsize}
+ #         \usepackage{geometry}
+ #         \geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+ html
+
+#mainfont: "Microsoft JhengHei UI"
+#mainfont: "Microsoft JhengHei"
+mainfont: "Microsoft JhengHei Bold"
+toc: false
+lang: zh-Tw
+documentclass: article
+pdf-engine: xelatex
+execute:
+  tidy: true
+  echo: true
+  warning: false
+  message: false
+---
+
+## Import package
+
+```{r}
+library(table1) # table1 func. package
+library(dplyr)
+library(purrr)
+library(ggplot2) 
+library(GGally) # ggpair func. package 
+library(Hmisc) # describe func. package
+```
+
+## Varibale definition
+| Variable          | Data Type  | Definition | Note |
+|------------------|-----------|------------|------|
+| family          | Nominal   | String of the name of the family of mushroom species | 23 types |
+| name            | Nominal   | String of the mushroom species |  |
+| class           | Nominal   | Edibility classification (binary, p = poisonous(0), e = edible(1)) | binary ,p = poisonous(0), e = edible(1) |
+| cap-diameter    | Metrical  | Float number(s) in cm (two values = min max, one value = mean) | two variables (min-max) or one variable (mean) |
+| cap-shape       | Nominal   | bell=b, conical=c, convex=x, flat=f, sunken=s, spherical=p, others=o |  |
+| cap-surface     | Nominal   | fibrous=i, grooves=g, scaly=y, smooth=s, shiny=h, leathery=l, silky=k, sticky=t, wrinkled=w, fleshy=e ||
+| cap-color       | Nominal   | brown=n, buff=b, gray=g, green=r, pink=p, purple=u, red=e, white=w, yellow=y, blue=l, orange=o, black=k ||
+| does-bruise-bleed | Nominal | bruises-or-bleeding=t, no=f | binary ,t = yes(1), f = no(0) |
+| gill-attachment | Nominal   | adnate=a, adnexed=x, decurrent=d, free=e, sinuate=s, pores=p, none=f |  |
+| gill-spacing    | Nominal   | close=c, distant=d, none=f |  |
+| gill-color      | Nominal   | See cap-color + none=f | same as cap-color, with 'none = f' |
+| stem-height     | Metrical  | Float number(s) in cm (two values = min max, one value = mean) | two variables (min-max) or one variable (mean) |
+| stem-width      | Metrical  | Float number(s) in mm (two values = min max, one value = mean) | two variables (min-max) or one variable (mean) |
+| stem-root       | Nominal   | bulbous=b, swollen=s, club=c, cup=u, equal=e, rhizomorphs=z, rooted=r |  |
+| stem-surface    | Nominal   | See cap-surface + none=f | same as cap-surface, with 'none = f' |
+| stem-color      | Nominal   | See cap-color + none=f | same as cap-color, with 'none = f' |
+| veil-type       | Nominal   | partial=p, universal=u |  |
+| veil-color      | Nominal   | See cap-color + none=f | same as cap-color, with 'none = f' |
+| has-ring        | Nominal   | ring=t, none=f | binary ,t = yes(1), f = no(0) |
+| ring-type       | Nominal   | cobwebby=c, evanescent=e, flaring=r, grooved=g, large=l, pendant=p, sheathing=s, zone=z, scaly=y, movable=m, none=f |  |
+| spore-print-color | Nominal | See cap-color |  |
+| habitat         | Nominal   | grasses=g, leaves=l, meadows=m, paths=p, heaths=h, urban=u, waste=w, woods=d |  |
+| season          | Nominal   | spring=s, summer=u, autumn=a, winter=w |  |
+
+
+## Read csv
+
+```{r}
+dat <- read.csv("D:/統計咨詢 碩一下/HW2/mushroom/primary_data.csv", sep = ";")
+```
+
+## Describe(not processed)
+```{r, results='asis'}
+sink("describe_output.html")
+html(describe(dat), descript = "Descriptive Statistics",
+file = '', caption.placement = "top")
+sink()
+# latex(describe(dat), descript = "Descriptive Statistics",
+# file = '', caption.placement = "top")
+
+```
+
+## Table1(not processed)
+```{r}
+table1(~ .|class, data = subset(dat, select = -c(name))) # only can use subset
+```
+
+## Data processing method(designed by Yien, modified by Zongyou)
+```{r}
+continuous_process <- function(column, name){
+  # column = dat$cap.diameter
+  # name = "stem.height"
+  column_ = column %>%
+    gsub(pattern = "\\[|\\]", replacement = "")%>%
+    strsplit(", ")
+
+  n_element <- function(x, n = 2){
+    length(x) == n
+  }
+  names = paste(name, c("min", "max", "mean"), sep = "_")
+
+  output = data.frame(min = rep(0,173)) %>%
+    mutate(min = map_if(column_, n_element, ~ .x[[1]], .else = ~ NA) %>% unlist %>% as.numeric(),
+           max = map_if(column_, n_element, ~ .x[[2]], .else = ~ NA) %>% unlist %>% as.numeric(),
+           # mean= map_if(column_, ~ n_element(.x), ~ mean(as.numeric(.x)), .else = ~ as.numeric(.x)) %>% unlist)%>%
+           mean = map_if(column_, n_element, ~ NA, .else = ~ as.numeric(.x)) %>% unlist()) %>% 
+    setNames(names)
+  return(output)
+}
+
+
+continuous = dat %>% select(cap.diameter, stem.height, stem.width)
+continuous_finish = mapply(continuous_process, continuous, names(continuous),SIMPLIFY = FALSE) 
+# continuous_finish
+
+##########################################################
+make_dummy <- function(column, name){
+  # column = dat$cap.shape
+  # name = "cap.shape"
+  column_ = column %>%
+    gsub(pattern = "\\[|\\]", replacement = "")%>%
+    strsplit(", ")
+  types = column_%>%
+    unlist()%>%
+    unique
+  names = paste0(rep(name,length(types)), "_", types)
+
+  check_type <-  function(list, type){
+    as.integer(type %in% list)
+  }
+
+  output = lapply(types, function(type){
+    rapply(column_, check_type, type = type)
+    }) %>%
+    do.call(what = cbind)%>%
+    as.data.frame %>%
+    setNames(names)
+
+  return(output)
+}
+
+categorical = dat %>% select(-c(family , name, does.bruise.or.bleed, has.ring, class, cap.diameter, stem.height, stem.width))
+categorical_finish = mapply(make_dummy, categorical, names(categorical))
+# categorical_finish
+
+
+dat$class <- ifelse(dat$class == "p", 0, 1)
+dat$does.bruise.or.bleed <- ifelse(dat$does.bruise.or.bleed == "[f]", 0, 1)
+dat$has.ring <- ifelse(dat$has.ring == "[f]", 0, 1)
+
+new_data <- bind_cols(data.frame(family = dat$family, name = dat$name,
+                      class = dat$class,
+                      does.bruise.or.bleed = dat$does.bruise.or.bleed,          
+                      has.ring = dat$has.ring), 
+                      continuous_finish, categorical_finish)
+
+new_data <- new_data %>% mutate(across(-c("cap.diameter_min","cap.diameter_max","cap.diameter_mean",                            "stem.height_min","stem.height_max","stem.height_mean",
+                 "stem.width_min","stem.width_max","stem.width_mean"), as.factor))
+                                
+head(new_data)
+ 
+```
+## Describe(processed)
+```{r, results='asis'}
+sink("describe_output.html")
+html(describe(new_data), descript = "Descriptive Statistics",
+file = '', caption.placement = "top")
+sink()
+# latex(describe(new_data), descript = "Descriptive Statistics",
+# file = '', caption.placement = "top")
+
+```
+
+## table1(processed)
+```{r}
+new_data_selected <- new_data %>% 
+  select(cap.diameter_min, cap.diameter_max, cap.diameter_mean,
+         stem.height_min, stem.height_max, stem.height_mean,
+         stem.width_min, stem.width_max, stem.width_mean)
+
+dat_selected <- dat %>% 
+  select(-c(stem.height, stem.width, cap.diameter))
+
+merged_data <- cbind(new_data_selected, dat_selected)
+# merged_data
+
+table1(~ .| class, data = merged_data)
+```
+
+## ggpairs(random select too much variables)
+```{r, fig.width=12, fig.height=12, out.width="100%"}
+selected_vars <- c("class", "has.ring", "stem.width_mean", "cap.diameter_min",
+                   "stem.color_o", "does.bruise.or.bleed", "veil.color_n")
+
+ggpairs(new_data, 
+        columns = selected_vars,
+        mapping = aes(color = factor(class)))
+```
+
+
