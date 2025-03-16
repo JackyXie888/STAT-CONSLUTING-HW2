@@ -4,13 +4,13 @@ subtitle: "R code"
 date: 2025/03/15
 author: 數據一 謝宗佑
 format:
- # pdf:
- #    include-in-header:
- #      - text: |
- #         \usepackage{setspace,relsize}
- #         \usepackage{geometry}
- #         \geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
- html
+ pdf:
+    include-in-header:
+      - text: |
+         \usepackage{setspace,relsize}
+         \usepackage{geometry}
+         \geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+ # html
 
 #mainfont: "Microsoft JhengHei UI"
 #mainfont: "Microsoft JhengHei"
@@ -68,17 +68,17 @@ library(Hmisc) # describe func. package
 ## Read csv
 
 ```{r}
-dat <- read.csv("D:/統計咨詢 碩一下/HW2/mushroom/primary_data.csv", sep = ";")
+dat <- read.csv("D:/統計咨詢 碩一下/HW2/STAT-CONSLUTING-HW2/mushroom/primary_data.csv", sep = ";")
 ```
 
 ## Describe(not processed)
 ```{r, results='asis'}
-sink("describe_output.html")
-html(describe(dat), descript = "Descriptive Statistics",
-file = '', caption.placement = "top")
-sink()
-# latex(describe(dat), descript = "Descriptive Statistics",
+# sink("describe_output.html")
+# html(describe(dat), descript = "Descriptive Statistics",
 # file = '', caption.placement = "top")
+# sink()
+latex(describe(dat), descript = "Descriptive Statistics",
+file = '', caption.placement = "top")
 
 ```
 
@@ -164,12 +164,12 @@ head(new_data)
 ```
 ## Describe(processed)
 ```{r, results='asis'}
-sink("describe_output.html")
-html(describe(new_data), descript = "Descriptive Statistics",
-file = '', caption.placement = "top")
-sink()
-# latex(describe(new_data), descript = "Descriptive Statistics",
+# sink("describe_output.html")
+# html(describe(new_data), descript = "Descriptive Statistics",
 # file = '', caption.placement = "top")
+# sink()
+latex(describe(new_data), descript = "Descriptive Statistics",
+file = '', caption.placement = "top")
 
 ```
 
@@ -180,13 +180,14 @@ new_data_selected <- new_data %>%
          stem.height_min, stem.height_max, stem.height_mean,
          stem.width_min, stem.width_max, stem.width_mean)
 
-dat_selected <- dat %>% 
+dat <- dat %>% mutate(across(-c("stem.height","stem.width","cap.diameter"), as.factor))
+dat_selected <- dat %>%
   select(-c(stem.height, stem.width, cap.diameter))
 
 merged_data <- cbind(new_data_selected, dat_selected)
 # merged_data
 
-table1(~ .| class, data = merged_data)
+table1(~ .| class, data = subset(merged_data, select = -c(name)))
 ```
 
 ## ggpairs(random select too much variables)
